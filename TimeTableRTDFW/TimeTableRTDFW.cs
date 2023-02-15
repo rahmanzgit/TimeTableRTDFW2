@@ -273,7 +273,7 @@ namespace TimeTableRTDFW2
             Time timeData;
             if (m_data.TryGetValue(data.Key, out timeData))
             {
-                switch (data.Field)
+                switch (data.Field.ToLower())
                 {
                     case "key":
                         return data.Key;
