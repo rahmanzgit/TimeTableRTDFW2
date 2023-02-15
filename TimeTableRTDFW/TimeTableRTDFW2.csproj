@@ -105,7 +105,6 @@
     <Compile Include="Model\Time.cs" />
     <Compile Include="Model\TimeTable.cs" />
     <Compile Include="Model\TopicData.cs" />
-    <Compile Include="SubscriptionManager.cs" />
     <Compile Include="TimeTableRTDFW.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
