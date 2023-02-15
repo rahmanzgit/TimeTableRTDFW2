@@ -73,6 +73,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="Sample\Book1.xlsx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TimeTableRTDFW\TimeTableRTDFW2.csproj">
