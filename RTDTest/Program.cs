@@ -21,8 +21,8 @@ namespace RTDTest
             TimeTableRTD2 rtd = new TimeTableRTD2();
             int topicid = 0;            
             Array strings = Array.CreateInstance(typeof(string), 4);
-            //strings.SetValue("localhost:9092", 0);
-            strings.SetValue("sample", 0);
+            strings.SetValue("localhost:9092", 0);
+            //strings.SetValue("sample", 0);
             strings.SetValue("ztesttopic2", 1);
             strings.SetValue("k1", 2);
             strings.SetValue("KEY", 3);

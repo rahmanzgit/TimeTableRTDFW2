@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using TimeTableRTDFW.Model;
+using TimeTableRTDFW.Util;
 using TimeTableRTDFW2.Model;
 using Time = TimeTableRTDFW2.Model.Time;
 using Timer = System.Windows.Forms.Timer;
@@ -31,11 +32,11 @@ namespace TimeTableRTDFW2
             {
                 m_topics = new Dictionary<int, TopicData>();
                 m_data = new Dictionary<string, Time>();
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: Constructed");
+                Log.Append(logPath, "TimeTableRTD: Constructed");
             }
             catch(Exception ex)
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: " + ex.ToString());
+                Log.Append(logPath, "TimeTableRTD: " + ex.ToString());
             }
         }
 
@@ -65,25 +66,25 @@ namespace TimeTableRTDFW2
             try
             {
                 newValues = true;
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data");
+                Log.Append(logPath, "TimeTableRTD: In Connect Data");
                 if (strings.Length == 1)
                 {
                     string host = strings.GetValue(0).ToString().ToUpperInvariant();
 
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - string length 1");
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - string length 1");
         
                     return "ERROR: Expected: host, topic, field";
                 }
                 else if (strings.Length >= 2)
                 {
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - string length >=2");                    
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - string length >=2");                    
                     string host = strings.GetValue(0).ToString();
                     string topic = strings.GetValue(1).ToString();
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - host:" + host + "; topic:" + topic);
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - host:" + host + "; topic:" + topic);
                     string field = strings.Length > 2 ? strings.GetValue(2).ToString() : "";
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - field:" + field);
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - field:" + field);
                     string key = strings.Length > 3 ? strings.GetValue(3).ToString() : "";
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - key:" + key);
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - key:" + key);
                     //
                     TopicData data = new TopicData(key, field);
                     m_topics.Add(topicId, data);
@@ -109,7 +110,7 @@ namespace TimeTableRTDFW2
             }
             catch (Exception ex)
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Connect Data - Exception:" + ex.ToString());
+                Log.Append(logPath, "TimeTableRTD: In Connect Data - Exception:" + ex.ToString());
                 return ex.Message;
             }
         }
@@ -117,87 +118,88 @@ namespace TimeTableRTDFW2
         {
             try
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe");
+                Log.Append(logPath, "TimeTableRTD: In Subscribe");
                 //
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - topic checked");
+                Log.Append(logPath, "TimeTableRTD: In Subscribe - topic checked");
 
                 Uri hostUri = new Uri(host);
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Subscribed");
+                Log.Append(logPath, "TimeTableRTD: In Subscribe - Subscribed");
 
                 Task.Run(() =>
                 {
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Task Run");
+                    Log.Append(logPath, "TimeTableRTD: In Subscribe - Task Run");
                     try
                     {
                         var config = new ConsumerConfig
                         {
                             BootstrapServers = host,
                             GroupId = Guid.NewGuid().ToString(),
+                            AutoOffsetReset = AutoOffsetReset.Earliest,
                             EnableAutoOffsetStore = true,
                             EnableAutoCommit = true,
                             StatisticsIntervalMs = 5000,
                             SessionTimeoutMs = 6000,
-                            AutoOffsetReset = AutoOffsetReset.Earliest,
                             EnablePartitionEof = true
                         };
-                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Config Created");
+                        Log.Append(logPath, "TimeTableRTD: In Subscribe - Config Created");
 
                         using (var consumer = new ConsumerBuilder<Ignore, string>(config)                
                         .Build())
                         {
-                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Consumer Build");                            
-                            consumer.Assign(new TopicPartitionOffset(topic, new Partition(0), Offset.Beginning));
+                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Build");                            
+                            //consumer.Assign(new TopicPartitionOffset(topic, new Partition(0), Offset.Beginning));
                             consumer.Subscribe(topic);
-                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Consumer Subscribed : " + topic );
+                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Subscribed : " + topic );
                             try
                             {
                                 while (true)
                                 {
                                     try
                                     {
-                                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Waiting to be Retrived");
-                                        var consumeResult = consumer.Consume(2000);
-                                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Retrived");
+                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - Waiting to be Retrived");
+                                        var consumeResult = consumer.Consume(_cancellationTokenSource.Token);
+                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - Retrived");
                                         if (consumeResult != null && consumeResult.IsPartitionEOF)
                                         {
-                                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - IsPartitionEOF");
+                                            Log.Append(logPath, "TimeTableRTD: In Subscribe - IsPartitionEOF");
                                             continue;
                                         }
                                         else
                                         {
-                                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Is Not PartitionEOF");
+                                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Is Not PartitionEOF");
                                         }
                                         if (consumeResult !=null && consumeResult.Message != null)
                                         {
-                                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Retrived - " + consumeResult.Message.Value);
+                                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Retrived - " + consumeResult.Message.Value);
                                             var timeTable = JsonConvert.DeserializeObject<TimeTable>(consumeResult.Message.Value);
                                             m_data.Add(timeTable.key, timeTable.value);
                                         }
                                         else
                                         {
-                                            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Empty Message or null Message");
+                                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Empty Message or null Message");
                                         }
                                     }
                                     catch (ConsumeException e)
                                     {
-                                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - ConsumeException - " + e.Error.Reason);                                        
+                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - ConsumeException - " + e.Error.Reason);                                        
                                     }
                                     catch (Exception e)
                                     {
-                                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - General Ex - " + e.ToString());
+                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - General Ex - " + e.ToString());
                                     }
                                 }
                             }
                             catch (OperationCanceledException oex)
                             {
-                                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Retrived Exception : " + "Closing consumer : " + oex.ToString());
+                                Log.Append(logPath, "TimeTableRTD: In Subscribe - Retrived Exception : " + "Closing consumer : " + oex.ToString());
                                 consumer.Close();
+                                isSubscribed = false;
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - " + ex.ToString());
+                        Log.Append(logPath, "TimeTableRTD: In Subscribe - " + ex.ToString());
                     }
                     finally
                     {
@@ -207,7 +209,7 @@ namespace TimeTableRTDFW2
             }
             catch (Exception ex)
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Subscribe - Exception:" + ex.ToString());                                
+                Log.Append(logPath, "TimeTableRTD: In Subscribe - Exception:" + ex.ToString());                                
             }
             return null;
         }
@@ -236,12 +238,12 @@ namespace TimeTableRTDFW2
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In SampleGenerator - " + ex.ToString());
+                    Log.Append(logPath, "TimeTableRTD: In SampleGenerator - " + ex.ToString());
                 }
             }
             catch (Exception ex)
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In SampleGenerator - Exception:" + ex.ToString());
+                Log.Append(logPath, "TimeTableRTD: In SampleGenerator - Exception:" + ex.ToString());
             }
             return null;
         }
@@ -249,7 +251,7 @@ namespace TimeTableRTDFW2
         public void DisconnectData(int topicId)
         {
             m_topics.Remove(topicId);
-            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In DisconnectData");
+            Log.Append(logPath, "TimeTableRTD: In DisconnectData");
         }
 
         public Array RefreshData(ref int topicCount)
@@ -288,14 +290,14 @@ namespace TimeTableRTDFW2
 
         public int Heartbeat()
         {
-            File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Heartbeat");
+            Log.Append(logPath, "TimeTableRTD: In Heartbeat");
             if (m_data != null)
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Heartbeat - " + m_data.Count);
+                Log.Append(logPath, "TimeTableRTD: In Heartbeat - " + m_data.Count);
             }
             else
             {
-                File.AppendAllText(logPath, "\n" + DateTime.Now.ToString() + "\nTimeTableRTD: In Heartbeat - Data Not loaded yet");
+                Log.Append(logPath, "TimeTableRTD: In Heartbeat - Data Not loaded yet");
             }            
             return 1;
         }
