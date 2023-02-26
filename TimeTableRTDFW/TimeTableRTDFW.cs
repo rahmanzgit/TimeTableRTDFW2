@@ -23,7 +23,7 @@ namespace TimeTableRTDFW2
         Timer m_timer;
         IRTDUpdateEvent m_callback;
         Dictionary<string, Time> m_data;
-        string logPath = @"Log\\Log"+ DateTime.Now.Day + DateTime.Now.Month + DateTime.Now.Year + "_"+ DateTime.Now.Hour+DateTime.Now.Minute + DateTime.Now.Second+DateTime.Now.Millisecond + ".txt";
+        string logPath = @"Log\\Log" + DateTime.Now.Day + DateTime.Now.Month + DateTime.Now.Year + "_" + DateTime.Now.Hour + DateTime.Now.Minute + DateTime.Now.Second + DateTime.Now.Millisecond + ".txt";
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         bool isSubscribed = false;
         public TimeTableRTD2()
@@ -34,7 +34,7 @@ namespace TimeTableRTDFW2
                 m_data = new Dictionary<string, Time>();
                 Log.Append(logPath, "TimeTableRTD: Constructed");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Log.Append(logPath, "TimeTableRTD: " + ex.ToString());
             }
@@ -49,7 +49,7 @@ namespace TimeTableRTDFW2
             return 1;
         }
 
-        public void ServerTerminate()        
+        public void ServerTerminate()
         {
             if (null != m_timer)
             {
@@ -72,12 +72,12 @@ namespace TimeTableRTDFW2
                     string host = strings.GetValue(0).ToString().ToUpperInvariant();
 
                     Log.Append(logPath, "TimeTableRTD: In Connect Data - string length 1");
-        
+
                     return "ERROR: Expected: host, topic, field";
                 }
                 else if (strings.Length >= 2)
                 {
-                    Log.Append(logPath, "TimeTableRTD: In Connect Data - string length >=2");                    
+                    Log.Append(logPath, "TimeTableRTD: In Connect Data - string length >=2");
                     string host = strings.GetValue(0).ToString();
                     string topic = strings.GetValue(1).ToString();
                     Log.Append(logPath, "TimeTableRTD: In Connect Data - host:" + host + "; topic:" + topic);
@@ -87,7 +87,8 @@ namespace TimeTableRTDFW2
                     Log.Append(logPath, "TimeTableRTD: In Connect Data - key:" + key);
                     //
                     TopicData data = new TopicData(key, field);
-                    m_topics.Add(topicId, data);
+                    //m_topics.Add(topicId, data);
+                    m_topics[topicId] = data;
                     //
                     if (!host.Equals("sample"))
                     {
@@ -95,15 +96,14 @@ namespace TimeTableRTDFW2
                         {
                             Subscribe(topicId, host, topic, field);
                             isSubscribed = true;
-                        }                        
+                        }
                     }
                     else
                     {
-                        SampleGenerator();
-                        m_timer.Start();
+                        SampleGenerator();                        
                     }
-                    
-                    return GetNextValue(data);                                        
+                    m_timer.Start();
+                    return GetNextValue(data);
                 }
                 return "ERROR: Expected: host, topic, field";
 
@@ -143,13 +143,14 @@ namespace TimeTableRTDFW2
                         };
                         Log.Append(logPath, "TimeTableRTD: In Subscribe - Config Created");
 
-                        using (var consumer = new ConsumerBuilder<Ignore, string>(config)                
+                        
+                        using (var consumer = new ConsumerBuilder<Ignore, string>(config)
                         .Build())
                         {
-                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Build");                            
+                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Build");
                             //consumer.Assign(new TopicPartitionOffset(topic, new Partition(0), Offset.Beginning));
                             consumer.Subscribe(topic);
-                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Subscribed : " + topic );
+                            Log.Append(logPath, "TimeTableRTD: In Subscribe - Consumer Subscribed : " + topic);
                             try
                             {
                                 while (true)
@@ -168,11 +169,14 @@ namespace TimeTableRTDFW2
                                         {
                                             Log.Append(logPath, "TimeTableRTD: In Subscribe - Is Not PartitionEOF");
                                         }
-                                        if (consumeResult !=null && consumeResult.Message != null)
+                                        if (consumeResult != null && consumeResult.Message != null)
                                         {
                                             Log.Append(logPath, "TimeTableRTD: In Subscribe - Retrived - " + consumeResult.Message.Value);
-                                            var timeTable = JsonConvert.DeserializeObject<TimeTable>(consumeResult.Message.Value);
-                                            m_data.Add(timeTable.key, timeTable.value);
+                                            var timeTable = JsonConvert.DeserializeObject<TimeTable>(consumeResult.Message.Value.ToString());
+                                            if (timeTable != null)
+                                            {
+                                                this.AddTimeTable(timeTable);
+                                            }
                                         }
                                         else
                                         {
@@ -180,12 +184,21 @@ namespace TimeTableRTDFW2
                                         }
                                     }
                                     catch (ConsumeException e)
-                                    {
+                                    {                                        
+                                        if (e.ConsumerRecord.Message.Value.Length > 0)
+                                        {
+                                            String msg = System.Text.Encoding.Default.GetString(e.ConsumerRecord.Message.Value);
+                                            var timeTable = JsonConvert.DeserializeObject<TimeTable>(msg);
+                                            if (timeTable != null)
+                                            {
+                                                this.AddTimeTable(timeTable);
+                                            }                                            
+                                        }
                                         Log.Append(logPath, "TimeTableRTD: In Subscribe - ConsumeException - " + e.Error.Reason);                                        
                                     }
                                     catch (Exception e)
                                     {
-                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - General Ex - " + e.ToString());
+                                        Log.Append(logPath, "TimeTableRTD: In Subscribe - General Ex - " + e.ToString());                                        
                                     }
                                 }
                             }
@@ -205,13 +218,24 @@ namespace TimeTableRTDFW2
                     {
                     }
                 });
-                return 1;                
+                return 1;
             }
             catch (Exception ex)
             {
-                Log.Append(logPath, "TimeTableRTD: In Subscribe - Exception:" + ex.ToString());                                
+                Log.Append(logPath, "TimeTableRTD: In Subscribe - Exception:" + ex.ToString());
             }
             return null;
+        }
+        private void AddTimeTable(TimeTable timeTable)
+        {
+            if (!m_data.ContainsKey(timeTable.key))
+            {
+                m_data.Add(timeTable.key, timeTable.value);
+            }
+            else
+            {
+                m_data[timeTable.key] = timeTable.value;
+            }
         }
         private object SampleGenerator()
         {
@@ -267,8 +291,9 @@ namespace TimeTableRTDFW2
                 ++index;
             }
 
-            topicCount = m_topics.Count;            
-            return data;            
+            topicCount = m_topics.Count;
+            m_timer.Start();
+            return data;
         }
         object GetNextValue(TopicData data)
         {
@@ -298,14 +323,15 @@ namespace TimeTableRTDFW2
             else
             {
                 Log.Append(logPath, "TimeTableRTD: In Heartbeat - Data Not loaded yet");
-            }            
+            }
+            //m_callback.UpdateNotify();
             return 1;
         }
         void TimerEventHandler(object sender,
                                EventArgs args)
         {
-            m_timer.Stop();
-            SampleGenerator();
+            //m_timer.Stop();
+            //SampleGenerator();
             m_callback.UpdateNotify();
         }
     }
