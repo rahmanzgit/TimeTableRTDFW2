@@ -26,12 +26,14 @@ namespace TimeTableRTDFW2
         string logPath = @"Log\\Log" + DateTime.Now.Day + DateTime.Now.Month + DateTime.Now.Year + "_" + DateTime.Now.Hour + DateTime.Now.Minute + DateTime.Now.Second + DateTime.Now.Millisecond + ".txt";
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         bool isSubscribed = false;
+        JSONHelper jSONHelper;
         public TimeTableRTD2()
         {
             try
             {
                 m_topics = new Dictionary<int, TopicData>();
                 m_data = new Dictionary<string, Time>();
+                jSONHelper = new JSONHelper();
                 Log.Append(logPath, "TimeTableRTD: Constructed");
             }
             catch (Exception ex)
@@ -172,7 +174,7 @@ namespace TimeTableRTDFW2
                                         if (consumeResult != null && consumeResult.Message != null)
                                         {
                                             Log.Append(logPath, "TimeTableRTD: In Subscribe - Retrived - " + consumeResult.Message.Value);
-                                            var timeTable = JsonConvert.DeserializeObject<TimeTable>(consumeResult.Message.Value.ToString());
+                                            var timeTable = jSONHelper.TryParseJson<TimeTable>(consumeResult.Message.Value);
                                             if (timeTable != null)
                                             {
                                                 this.AddTimeTable(timeTable);
@@ -187,8 +189,8 @@ namespace TimeTableRTDFW2
                                     {                                        
                                         if (e.ConsumerRecord.Message.Value.Length > 0)
                                         {
-                                            String msg = System.Text.Encoding.Default.GetString(e.ConsumerRecord.Message.Value);
-                                            var timeTable = JsonConvert.DeserializeObject<TimeTable>(msg);
+                                            string msg = System.Text.Encoding.Default.GetString(e.ConsumerRecord.Message.Value);
+                                            var timeTable = jSONHelper.TryParseJson<TimeTable>(msg);
                                             if (timeTable != null)
                                             {
                                                 this.AddTimeTable(timeTable);
@@ -323,15 +325,13 @@ namespace TimeTableRTDFW2
             else
             {
                 Log.Append(logPath, "TimeTableRTD: In Heartbeat - Data Not loaded yet");
-            }
-            //m_callback.UpdateNotify();
+            }            
             return 1;
         }
         void TimerEventHandler(object sender,
                                EventArgs args)
         {
-            //m_timer.Stop();
-            //SampleGenerator();
+            m_timer.Stop();            
             m_callback.UpdateNotify();
         }
     }
