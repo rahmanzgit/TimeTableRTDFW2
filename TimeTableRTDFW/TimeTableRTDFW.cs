@@ -236,7 +236,7 @@ namespace TimeTableRTDFW2
             }
             else
             {
-                m_data[timeTable.key] = timeTable.value;
+                m_data[timeTable.key] = Util.GetWithLatestTime(m_data[timeTable.key], timeTable.value);
             }
         }
         private object SampleGenerator()
